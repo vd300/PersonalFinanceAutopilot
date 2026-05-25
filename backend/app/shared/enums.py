@@ -30,6 +30,14 @@ class SourceType(StrEnum):
     OTHER = "other"
 
 
+class FinancialMode(StrEnum):
+    SALARIED = "salaried"
+    FREELANCER = "freelancer"
+    UNEMPLOYED = "unemployed"
+    STUDENT_DEPENDENT = "student_dependent"
+    CUSTOM = "custom"
+
+
 class UploadStatus(StrEnum):
     PENDING = "pending"
     PROCESSED = "processed"
@@ -51,4 +59,3 @@ class AlertType(StrEnum):
     LOW_SAFE_TO_SPEND = "low_safe_to_spend"
     SUBSCRIPTION_DETECTED = "subscription_detected"
     CREDIT_CARD_DUE = "credit_card_due"
-

@@ -8,6 +8,34 @@ export type BreakdownItem = {
   amount: number;
 };
 
+export type FinancialMode = "salaried" | "freelancer" | "unemployed" | "student_dependent" | "custom";
+
+export type FinancialProfile = {
+  id: string;
+  user_id: string;
+  financial_mode: FinancialMode;
+  available_balance: number | string;
+  monthly_income_amount: number | string | null;
+  monthly_income_day: number | null;
+  expected_income_amount: number | string | null;
+  expected_income_date: string | null;
+  monthly_essential_expense_estimate: number | string;
+  monthly_non_essential_expense_estimate: number | string | null;
+  minimum_emergency_buffer: number | string;
+  savings_goal_amount: number | string;
+  credit_card_due_amount: number | string | null;
+  credit_card_due_date: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PrimaryInsight = {
+  type: "safe_to_spend" | "runway" | "cashflow_safety" | "allowance_remaining";
+  title: string;
+  value: number | null;
+  message: string;
+};
+
 export type Dashboard = {
   month: string;
   summary: {
@@ -26,12 +54,14 @@ export type Dashboard = {
   upcoming_bills: Array<{ id: string; name: string; expected_amount: number; next_due_date: string; is_auto_detected: boolean }>;
   subscriptions: Array<{ id: string; merchant_name: string; amount: number; frequency: string; next_expected_payment_date: string; status: string; confidence_score: number }>;
   alerts: Array<{ id: string; title: string; message: string; severity: string }>;
-  safe_to_spend: {
-    amount: number;
-    available_basis: string;
-    deductions: Record<string, number>;
-    explanation: string;
-  };
+  financial_mode: FinancialMode;
+  primary_insight: PrimaryInsight;
+  safe_to_spend: number | null;
+  runway_months: number | null;
+  monthly_burn_rate: number;
+  recommended_daily_spend: number | null;
+  emergency_buffer_status: "protected" | "at_risk" | "depleted";
+  calculation_explanation: string;
   cashflow_projection: {
     projected_expenses: number;
     projected_savings: number;
@@ -57,4 +87,3 @@ export type Transaction = {
   is_duplicate: boolean;
   duplicate_of_transaction_id: string | null;
 };
-

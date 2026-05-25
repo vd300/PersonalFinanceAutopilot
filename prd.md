@@ -116,15 +116,13 @@ The MVP should support manual transaction import from:
 
 Preferred formats:
 
-- PDF statements
 - CSV
 - Excel
+- PDF statements, optional
 - Manually pasted transaction text, optional
 - Screenshot/OCR support, later enhancement
 
-Many payment apps and credit card apps usually export statements as PDF, so PDF import should be treated as a first-class MVP requirement.
-
-For the first build, the app should support text-based PDF extraction first. OCR should be added only as a fallback for scanned/image-based PDFs.
+For the first build, CSV and Excel should be prioritized because they are easier to parse reliably.
 
 ### Source Priority
 
@@ -276,7 +274,7 @@ As a user, I want to import transactions from Google Pay, PhonePe, Amazon Pay, O
 ### Acceptance Criteria
 
 - User can select the transaction source before uploading.
-- User can upload PDF, CSV, or Excel files for supported sources.
+- User can upload CSV/Excel files for supported sources.
 - System shows a preview of parsed transactions.
 - User can map columns if column names are not recognized.
 - System stores the original source for every transaction.
@@ -1303,10 +1301,9 @@ The app is successful if users can:
 ## Phase 2: Multi-Source Transaction Import
 
 - Add source selection
-- Add PDF/CSV/Excel upload
-- Add parsers for generic PDF, generic CSV, and bank statements
+- Add CSV/Excel upload
+- Add parsers for generic CSV and bank statements
 - Add parsers for Google Pay, PhonePe, Amazon Pay, and OneCard exports where possible
-- Add text-based PDF extraction before OCR
 - Add column mapping
 - Parse transactions into common format
 - Prevent duplicates
@@ -1486,8 +1483,7 @@ The MVP is complete when:
 - A user can sign up and log in.
 - A user can choose an import source.
 - A user can upload transactions from at least two non-bank sources such as Google Pay, PhonePe, Amazon Pay, OneCard, or a credit card statement.
-- At least one supported non-bank source should work through PDF import.
-- A user can also upload a bank PDF/CSV/Excel statement as fallback.
+- A user can also upload a bank CSV/Excel statement as fallback.
 - Transactions are parsed and saved into one unified transaction database.
 - Duplicate transactions across sources are detected and not double-counted.
 - Richer source details are used to improve merchant names and categorization.
@@ -1522,3 +1518,182 @@ Avoid overengineering.
 Do not start with AI-heavy features.
 
 Build the rules-based and parser-based system first, then leave clean extension points for future AI features.
+
+---
+
+## 27. Financial Profile and Runway Mode
+
+The app should not assume every user has monthly salary income.
+
+Some users may be salaried, freelancers with irregular income, unemployed and living from savings, students/dependents, or people between jobs.
+
+Because of this, the app must analyze money based on the user's financial situation, not just monthly income minus expenses.
+
+### Financial Mode
+
+Add a user setting called `financial_mode`.
+
+Allowed values:
+
+```text
+salaried
+freelancer
+unemployed
+student_dependent
+custom
+```
+
+### Required Financial Profile Fields
+
+```text
+financial_mode
+available_balance
+monthly_income_amount nullable
+monthly_income_day nullable
+expected_income_amount nullable
+expected_income_date nullable
+monthly_essential_expense_estimate
+monthly_non_essential_expense_estimate nullable
+minimum_emergency_buffer
+savings_goal_amount
+credit_card_due_amount nullable
+credit_card_due_date nullable
+```
+
+### Why This Matters
+
+If the user has no income this month, the app should not automatically show:
+
+```text
+Safe to spend = ₹0
+```
+
+That is too simplistic.
+
+A user may have savings. In that case, the app should calculate:
+
+- Financial runway
+- Monthly burn rate
+- Daily spending limit
+- Emergency buffer status
+- How long savings may last
+
+### Mode-Based Dashboard Logic
+
+#### Salaried Mode
+
+Main dashboard metrics:
+
+- Safe to spend until next salary
+- Upcoming bills
+- Credit card dues
+- Projected savings
+- Category overspending
+
+Formula:
+
+```text
+safe_to_spend =
+available_balance
++ expected_income_before_next_cycle
+- upcoming_bills
+- credit_card_dues
+- savings_goal_remaining
+- minimum_emergency_buffer
+```
+
+#### Freelancer Mode
+
+Main dashboard metrics:
+
+- Safe to spend based on confirmed expected income
+- Cashflow gap
+- Upcoming bills
+- Average burn rate
+- Irregular income warning
+
+Formula:
+
+```text
+safe_to_spend =
+available_balance
++ confirmed_expected_income
+- upcoming_bills
+- credit_card_dues
+- essential_expenses_until_next_expected_income
+- minimum_emergency_buffer
+```
+
+#### Unemployed Mode
+
+Main dashboard metrics:
+
+- Financial runway
+- Monthly burn rate
+- Recommended daily spend
+- Emergency buffer status
+- Non-essential spending warning
+
+Formula:
+
+```text
+usable_balance = available_balance - minimum_emergency_buffer
+
+runway_months =
+usable_balance / average_monthly_essential_expenses
+```
+
+Recommended daily spend:
+
+```text
+recommended_daily_spend =
+usable_balance / desired_runway_days
+```
+
+The app should explain:
+
+```text
+Based on your current balance and essential monthly spending, your money may last around X months.
+```
+
+#### Student / Dependent Mode
+
+Main dashboard metrics:
+
+- Allowance remaining
+- Safe daily spend
+- Upcoming bills
+- Overspending against allowance
+
+Formula:
+
+```text
+safe_to_spend =
+allowance_received
++ available_balance
+- upcoming_bills
+- minimum_buffer
+- expected_essential_expenses
+```
+
+### Dashboard Display Rule
+
+The dashboard should dynamically change the primary card.
+
+```text
+salaried → Safe to spend
+freelancer → Cashflow safety
+unemployed → Financial runway
+student_dependent → Allowance remaining
+```
+
+### Acceptance Criteria
+
+- User can select financial mode during onboarding or settings.
+- Dashboard uses financial mode to choose the correct primary insight.
+- If user is unemployed, dashboard shows runway instead of only safe-to-spend.
+- Safe-to-spend is based on available balance, upcoming bills, dues, buffer, and expected income.
+- App does not assume no income means no money.
+- App clearly explains every calculation.
+- User can edit balance, buffer, expected income, and essential expense assumptions.
+

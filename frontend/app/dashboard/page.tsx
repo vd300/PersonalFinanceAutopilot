@@ -25,6 +25,14 @@ function Bars({ items }: { items: BreakdownItem[] }) {
   );
 }
 
+function formatInsightValue(data: Dashboard) {
+  if (data.primary_insight.value === null) return "Needs profile";
+  if (data.primary_insight.type === "runway") {
+    return `${data.primary_insight.value.toFixed(1)} months`;
+  }
+  return formatMoney(data.primary_insight.value);
+}
+
 export default function DashboardPage() {
   const [month, setMonth] = useState(currentMonth());
   const [data, setData] = useState<Dashboard | null>(null);
@@ -62,9 +70,9 @@ export default function DashboardPage() {
         <div className="grid">
           <section className="grid cards">
             <div className="card">
-              <div className="metric-label">Safe to spend</div>
-              <div className="metric-value safe">{formatMoney(data.safe_to_spend.amount)}</div>
-              <p className="muted">{data.safe_to_spend.available_basis}</p>
+              <div className="metric-label">{data.primary_insight.title}</div>
+              <div className="metric-value safe">{formatInsightValue(data)}</div>
+              <p className="muted">{data.primary_insight.message}</p>
             </div>
             <div className="card">
               <div className="metric-label">Income</div>
@@ -118,12 +126,18 @@ export default function DashboardPage() {
           </section>
 
           <section className="panel">
-            <h2>Safe-to-spend explanation</h2>
-            <p className="muted">{data.safe_to_spend.explanation}</p>
+            <h2>Calculation explanation</h2>
+            <p className="muted">{data.calculation_explanation}</p>
             <div className="toolbar">
-              {Object.entries(data.safe_to_spend.deductions).map(([key, value]) => (
-                <span className="badge" key={key}>{key.replaceAll("_", " ")}: {formatMoney(value)}</span>
-              ))}
+              <span className="badge">{data.financial_mode.replaceAll("_", " ")}</span>
+              <span className="badge">buffer: {data.emergency_buffer_status.replaceAll("_", " ")}</span>
+              <span className="badge">monthly burn: {formatMoney(data.monthly_burn_rate)}</span>
+              {data.safe_to_spend !== null ? (
+                <span className="badge">safe to spend: {formatMoney(data.safe_to_spend)}</span>
+              ) : null}
+              {data.recommended_daily_spend !== null ? (
+                <span className="badge">daily spend: {formatMoney(data.recommended_daily_spend)}</span>
+              ) : null}
             </div>
           </section>
         </div>
@@ -133,4 +147,3 @@ export default function DashboardPage() {
     </AppShell>
   );
 }
-

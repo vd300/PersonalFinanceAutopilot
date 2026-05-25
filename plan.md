@@ -77,8 +77,6 @@ Use:
 - **Alembic** for migrations
 - **Pydantic v2** for request/response schemas
 - **Pandas / openpyxl** for CSV and Excel parsing
-- **pdfplumber / PyMuPDF** for text-based PDF transaction extraction
-- **Tesseract OCR / cloud OCR later** only for scanned or image-based PDFs
 - **RapidFuzz** for fuzzy matching and deduplication
 - **APScheduler / Celery / RQ**, optional later for background jobs
 - **Pytest** for backend tests
@@ -1078,15 +1076,11 @@ Recommended AI use cases later:
 
 ## 13.4 Adding Background Jobs Later
 
-For MVP, small CSV/Excel files can run synchronously.
-
-PDF parsing can be slower and less predictable, so the import system should be designed to support background jobs later.
+For MVP, imports can run synchronously if files are small.
 
 Later, add background jobs for:
 
 - Large file parsing
-- PDF parsing
-- OCR processing for scanned PDFs
 - Recalculating insights
 - Subscription detection
 - Alert generation
@@ -1099,110 +1093,7 @@ Keep job logic in service functions so the same functions can be called synchron
 
 ## 14. Import and Parser Design
 
-## 14.1 PDF-First Import Reality
-
-Many payment apps and credit card apps export statements as PDF rather than CSV or Excel.
-
-Therefore, PDF import should be treated as a first-class import path, not a future afterthought.
-
-The system should support two PDF types:
-
-### Text-Based PDFs
-
-These PDFs contain selectable text.
-
-Examples:
-
-- Credit card statement PDF
-- Some wallet/app transaction reports
-- Bank-generated PDF statements
-
-Use:
-
-```text
-pdfplumber
-PyMuPDF
-```
-
-Approach:
-
-1. Extract text and tables from PDF.
-2. Detect transaction rows.
-3. Normalize dates, amounts, merchant names, and descriptions.
-4. Show parsed preview to the user.
-5. Let the user correct columns or failed rows.
-
-### Scanned/Image-Based PDFs
-
-These PDFs are basically images.
-
-Examples:
-
-- Screenshot-generated PDF
-- Some downloaded app statements
-- Password-protected or flattened reports
-
-Use OCR only when normal PDF text extraction fails.
-
-MVP should not start with heavy OCR unless needed.
-
-Recommended fallback flow:
-
-```text
-Try text extraction
-  ↓
-If no usable text found, mark PDF as image-based
-  ↓
-Ask user to upload CSV/Excel if available OR enable OCR processing
-```
-
-OCR can be added later using:
-
-```text
-Tesseract OCR
-Google Document AI
-AWS Textract
-Azure Document Intelligence
-```
-
-For MVP, prefer local/open-source OCR only if it works reliably enough.
-
-### PDF Password Handling
-
-Many financial PDFs are password-protected.
-
-The app should support an optional password field during upload.
-
-Rules:
-
-- Password should only be used during parsing.
-- Do not store the PDF password.
-- Show clear error if password is incorrect.
-- Never log passwords.
-
-### PDF Parser Design
-
-PDF parsers should still follow the same parser interface.
-
-Example parser modules:
-
-```text
-google_pay_pdf.py
-phonepe_pdf.py
-amazon_pay_pdf.py
-onecard_pdf.py
-credit_card_pdf.py
-bank_statement_pdf.py
-generic_pdf.py
-```
-
-PDF parsing should output the same common transaction format as CSV parsers.
-
-This keeps the rest of the system unchanged.
-
----
-
-## 14.2 Parser Interface
+## 14.1 Parser Interface
 
 Each parser should return a list of parsed transactions and parsing warnings.
 
@@ -1231,7 +1122,7 @@ class ParsedTransaction(BaseModel):
 
 ---
 
-## 14.3 Parser Registry
+## 14.2 Parser Registry
 
 Use a parser registry.
 
@@ -1255,7 +1146,7 @@ result = parser.parse(file)
 
 ---
 
-## 14.4 Generic CSV and PDF Mapping
+## 14.3 Generic CSV Mapping
 
 Many exports will not match expected columns.
 
@@ -1271,15 +1162,6 @@ Debit → amount
 Credit → amount
 Balance → balance_after_transaction
 ```
-
-For PDFs, the user may need to review extracted rows because table extraction can be imperfect.
-
-The UI should support:
-
-- Preview extracted PDF rows
-- Mark incorrect rows
-- Edit extracted merchant/amount/date
-- Confirm import only after review
 
 Column mapping should be stored per user and source type later.
 
@@ -1878,10 +1760,7 @@ Deliverables:
 - Import source selection
 - Upload API
 - Generic CSV parser
-- Generic PDF parser
 - Bank statement parser
-- PDF text extraction using pdfplumber or PyMuPDF
-- Optional password input for protected PDFs
 - Preview API
 - Confirm import API
 - Transaction storage
@@ -1894,16 +1773,12 @@ Deliverables:
 Deliverables:
 
 - Google Pay parser
-- Google Pay PDF parser
 - PhonePe parser
-- PhonePe PDF parser
 - Amazon Pay parser
-- Amazon Pay PDF parser
 - OneCard / credit card parser
-- OneCard / credit card PDF parser
 - Parser registry
 - Parser tests
-- Sample CSV/Excel/PDF files
+- Sample files
 
 ---
 
@@ -2045,9 +1920,6 @@ Recommended order:
 
 Codex should follow these rules:
 
-- Treat PDF import as a first-class requirement.
-- Try text-based PDF extraction before OCR.
-- Do not store PDF passwords.
 - Do not put all backend logic in route files.
 - Do not hardcode user IDs.
 - Do not skip database migrations.
@@ -2128,3 +2000,161 @@ It also makes future additions easier, such as:
 - Mobile app
 - Real-time integrations
 - Advanced financial insights
+
+---
+
+## 28. Financial Profile and Calculation Architecture
+
+The app should include a financial profile layer before advanced dashboard analysis.
+
+This layer tells the backend how to interpret the user's financial situation.
+
+Without this, dashboard calculations become too naive.
+
+Example problem:
+
+```text
+income - expenses = projected savings
+```
+
+This is useful, but incomplete.
+
+It fails for unemployed users, freelancers, students, users living from savings, users with irregular income, and users with high balance but no current monthly income.
+
+### New Backend Module
+
+Add a new backend module:
+
+```text
+financial_profile/
+  models.py
+  router.py
+  service.py
+  schemas.py
+```
+
+### Financial Profile Table
+
+```text
+financial_profiles
+- id
+- user_id
+- financial_mode
+- available_balance
+- monthly_income_amount nullable
+- monthly_income_day nullable
+- expected_income_amount nullable
+- expected_income_date nullable
+- monthly_essential_expense_estimate
+- monthly_non_essential_expense_estimate nullable
+- minimum_emergency_buffer
+- savings_goal_amount
+- credit_card_due_amount nullable
+- credit_card_due_date nullable
+- created_at
+- updated_at
+```
+
+### Financial Mode Enum
+
+```text
+salaried
+freelancer
+unemployed
+student_dependent
+custom
+```
+
+### New API Endpoints
+
+```text
+GET   /api/v1/financial-profile
+PATCH /api/v1/financial-profile
+```
+
+### Calculation Service
+
+Add a service:
+
+```text
+insights/financial_health.py
+```
+
+This service should decide which calculation to use based on financial mode.
+
+```text
+salaried → safe-to-spend calculation
+freelancer → irregular cashflow calculation
+unemployed → runway calculation
+student_dependent → allowance calculation
+custom → conservative safe-to-spend calculation
+```
+
+### Dashboard API Change
+
+The dashboard response should include:
+
+```text
+primary_insight
+financial_mode
+safe_to_spend nullable
+runway_months nullable
+monthly_burn_rate
+recommended_daily_spend nullable
+emergency_buffer_status
+calculation_explanation
+```
+
+Example response shape:
+
+```json
+{
+  "financial_mode": "unemployed",
+  "primary_insight": {
+    "type": "runway",
+    "title": "Financial runway",
+    "value": "2.4 months",
+    "message": "Based on your current balance and essential spending, your money may last around 2.4 months."
+  },
+  "monthly_burn_rate": 25000,
+  "recommended_daily_spend": 820,
+  "emergency_buffer_status": "protected"
+}
+```
+
+### Frontend Change
+
+Add financial profile setup to:
+
+```text
+settings/page.tsx
+```
+
+Later, add onboarding:
+
+```text
+onboarding/financial-profile/page.tsx
+```
+
+Dashboard primary card should change based on `primary_insight.type`.
+
+Possible values:
+
+```text
+safe_to_spend
+runway
+cashflow_safety
+allowance_remaining
+```
+
+### Testing Requirement
+
+Add tests for:
+
+- Salaried safe-to-spend
+- Freelancer expected income calculation
+- Unemployed runway calculation
+- Student allowance calculation
+- Negative safe-to-spend clamped to zero
+- Emergency buffer protected/at-risk/depleted states
+

@@ -5,8 +5,9 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.financial_profile.service import get_or_create_financial_profile
 from app.insights.cashflow import calculate_cashflow, month_bounds
-from app.insights.safe_to_spend import calculate_safe_to_spend
+from app.insights.financial_health import FinancialHealthInput, calculate_financial_health
 from app.models import Alert, Bill, Subscription, Transaction, User
 from app.shared.enums import TransactionType
 
@@ -53,6 +54,25 @@ def monthly_dashboard(db: Session, user: User, month: str | None = None) -> dict
         Decimal(tx.amount)
         for tx in transactions
         if tx.payment_method == "credit_card" and tx.transaction_type == TransactionType.EXPENSE
+    )
+    upcoming_bill_total = sum(Decimal(bill.expected_amount) for bill in upcoming_bills)
+    profile = get_or_create_financial_profile(db, user)
+    profile_credit_card_due = (
+        Decimal(profile.credit_card_due_amount) if profile.credit_card_due_amount is not None else credit_card_due
+    )
+    financial_health = calculate_financial_health(
+        FinancialHealthInput(
+            financial_mode=profile.financial_mode,
+            available_balance=Decimal(profile.available_balance),
+            expected_income_amount=profile.expected_income_amount,
+            monthly_income_amount=profile.monthly_income_amount,
+            upcoming_bills=upcoming_bill_total,
+            credit_card_dues=profile_credit_card_due,
+            savings_goal_amount=Decimal(profile.savings_goal_amount),
+            minimum_emergency_buffer=Decimal(profile.minimum_emergency_buffer),
+            monthly_essential_expense_estimate=Decimal(profile.monthly_essential_expense_estimate),
+            monthly_non_essential_expense_estimate=profile.monthly_non_essential_expense_estimate,
+        )
     )
 
     return {
@@ -109,7 +129,22 @@ def monthly_dashboard(db: Session, user: User, month: str | None = None) -> dict
             {"id": alert.id, "title": alert.title, "message": alert.message, "severity": alert.severity}
             for alert in alerts[:6]
         ],
-        "safe_to_spend": calculate_safe_to_spend(db, user, start, end),
+        "financial_mode": financial_health.financial_mode.value,
+        "primary_insight": {
+            "type": financial_health.primary_insight.type,
+            "title": financial_health.primary_insight.title,
+            "value": _float_or_none(financial_health.primary_insight.value),
+            "message": financial_health.primary_insight.message,
+        },
+        "safe_to_spend": _float_or_none(financial_health.safe_to_spend),
+        "runway_months": _float_or_none(financial_health.runway_months),
+        "monthly_burn_rate": float(financial_health.monthly_burn_rate),
+        "recommended_daily_spend": _float_or_none(financial_health.recommended_daily_spend),
+        "emergency_buffer_status": financial_health.emergency_buffer_status,
+        "calculation_explanation": financial_health.calculation_explanation,
         "cashflow_projection": calculate_cashflow(db, user.id, start, end),
     }
 
+
+def _float_or_none(value: Decimal | None) -> float | None:
+    return float(value) if value is not None else None

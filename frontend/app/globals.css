@@ -202,6 +202,21 @@ select {
   max-width: 520px;
 }
 
+.form.wide {
+  max-width: 980px;
+}
+
+.form-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.field-note {
+  color: var(--muted);
+  margin: 0;
+}
+
 .table-wrap {
   overflow-x: auto;
 }
@@ -323,7 +338,8 @@ th {
   }
 
   .grid.cards,
-  .grid.two {
+  .grid.two,
+  .form-grid {
     grid-template-columns: 1fr;
   }
 

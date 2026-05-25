@@ -34,6 +34,6 @@ def get_db() -> Generator[Session, None, None]:
 
 def create_database() -> None:
     from app import models  # noqa: F401
+    from app.financial_profile import models as financial_profile_models  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
-

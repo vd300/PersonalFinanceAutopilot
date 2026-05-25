@@ -9,6 +9,7 @@ from app.core.config import get_settings
 from app.core.database import SessionLocal, create_database
 from app.dashboard.router import router as dashboard_router
 from app.demo_seed import seed_demo_data
+from app.financial_profile.router import router as financial_profile_router
 from app.imports.router import router as imports_router
 from app.settings.router import router as settings_router
 from app.subscriptions.router import router as subscriptions_router
@@ -48,8 +49,8 @@ app.include_router(imports_router, prefix=api_prefix)
 app.include_router(transactions_router, prefix=api_prefix)
 app.include_router(categories_router, prefix=api_prefix)
 app.include_router(dashboard_router, prefix=api_prefix)
+app.include_router(financial_profile_router, prefix=api_prefix)
 app.include_router(subscriptions_router, prefix=api_prefix)
 app.include_router(bills_router, prefix=api_prefix)
 app.include_router(alerts_router, prefix=api_prefix)
 app.include_router(settings_router, prefix=api_prefix)
-
