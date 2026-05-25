@@ -1,0 +1,5 @@
+Date,Description,Amount,Type,Reference
+2026-05-01,Paid to Swiggy dinner,820,expense,gpay-001
+2026-05-03,Paid to Uber ride,340,expense,gpay-002
+2026-05-06,Received freelance payout,12000,income,gpay-003
+

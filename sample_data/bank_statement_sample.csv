@@ -1,0 +1,6 @@
+Date,Narration,Debit,Credit,Balance,Reference
+2026-05-01,ACME Payroll Salary,,120000,185000,bank-001
+2026-05-01,Rent to Landlord,30000,,155000,bank-002
+2026-05-04,UPI/29382/AMAZON PAY,4200,,150800,bank-003
+2026-05-10,OneCard payment,12000,,138800,bank-004
+
